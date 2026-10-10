@@ -61,8 +61,22 @@ body.note-open{overflow:hidden}
 .video-frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#111}
 .certificate-name-print{display:none}
 @media print{.certificate input{display:none}.certificate-name-print{display:block;font-size:20px;font-weight:bold}}
+
+/* Navigation by sections and persistent study highlights */
+.toc-group{margin-top:10px;border-top:1px solid #ffffff28;padding-top:9px}
+.toc-group summary{cursor:pointer;font:700 13px system-ui;padding:9px;color:#ffe2c2;list-style:revert}
+.toc-group .toc-section{margin-left:9px;border-left:1px solid #ffffff35;padding-left:7px}
+.toc .toc-section button{display:block;width:100%;box-sizing:border-box;font-size:12px;line-height:1.35;opacity:.85}
+.study-tools{margin:16px 0 4px;padding:12px 10px;background:#ffffff13;border-radius:10px;font:12px/1.4 system-ui}
+.study-tools strong{display:block;margin-bottom:7px}.swatches{display:flex;gap:8px;margin:8px 0}
+.swatch{width:33px;height:33px;cursor:pointer;border:2px solid #fff9;border-radius:8px;color:#292521;font:bold 18px system-ui}
+.swatch:focus-visible{outline:2px solid white;outline-offset:2px}
+.study-help{font-size:11px;opacity:.8}
+.study-mark{border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.study-mark.yellow{background:#fff18d;color:#28251d}.study-mark.pink{background:#ffb9d4;color:#28251d}.study-mark.green{background:#bceec3;color:#28251d}
+@media(max-width:900px){.toc{display:grid;max-height:260px;overflow:auto}.study-tools{margin-top:12px}}
 </style></head><body>
-<div class="app"><aside><div class="brand">Ebook di formazione professionale</div><h1>In classe con le competenze socio-emotive</h1><div class="hours">Modulo 1 · 10 ore di formazione</div><div class="progress"><i id="bar"></i></div><div class="counter" id="counter"></div><div class="toc" id="toc"></div></aside>
+<div class="app"><aside><div class="brand">Ebook di formazione professionale</div><h1>In classe con le competenze socio-emotive</h1><div class="hours">Modulo 1 · 10 ore di formazione</div><div class="progress"><i id="bar"></i></div><div class="counter" id="counter"></div><div class="study-tools"><strong>🖍 Evidenzia il testo</strong><div class="swatches"><button class="swatch" style="background:#fff18d" title="Evidenzia in giallo" aria-label="Evidenzia in giallo" onpointerdown="event.preventDefault()" onclick="highlightSelection('yellow')">●</button><button class="swatch" style="background:#ffb9d4" title="Evidenzia in rosa" aria-label="Evidenzia in rosa" onpointerdown="event.preventDefault()" onclick="highlightSelection('pink')">●</button><button class="swatch" style="background:#bceec3" title="Evidenzia in verde" aria-label="Evidenzia in verde" onpointerdown="event.preventDefault()" onclick="highlightSelection('green')">●</button></div><div class="study-help">Seleziona un passaggio del testo, poi scegli un colore. Le evidenziazioni restano in questo browser.</div><button class="btn secondary" style="font-size:11px;margin-top:9px" onclick="clearPageHighlights()">Cancella evidenziazioni della pagina</button></div><div class="toc" id="toc"></div></aside>
 <main class="stage" id="stage"><div class="hint">← trascina / sfoglia →</div><div class="book"><div class="spread" id="spread"></div></div><div class="controls"><button class="btn secondary" id="home" onclick="pos=0;render();window.scrollTo(0,0)" aria-label="Torna all’inizio">⌂ Inizio</button><button class="btn secondary" id="prev" aria-label="Pagina precedente">←</button><button class="btn" id="next" aria-label="Pagina successiva">→</button></div></main></div>
 <div class="modalBack" id="noteBack"><div class="noteModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText"><header><button class="closeX" onclick="closeModal()" aria-label="Chiudi">×</button><h3 id="modalTitle"></h3></header><p id="modalText"></p></div></div>
 <script>
@@ -87,9 +101,79 @@ function escapeAttribute(t){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function saveCertificateName(value){certificateName=value;localStorage.setItem('sel_certificate_name',value);const printed=document.querySelector('.certificate-name-print');if(printed)printed.textContent=value}
 function finalHTML(){let s=quizState.final||{i:0,score:0};quizState.final=s;if(s.finished)return `<div class="kicker">Test finale concluso</div><h2>${s.score}/40</h2>`+(s.score>=32?`<div class="certificate"><h2>Attestato di completamento</h2><p>Si certifica che</p><p><input id="certificateName" aria-label="Nome e cognome" autocomplete="name" placeholder="Nome e cognome" value="${escapeAttribute(certificateName)}" oninput="saveCertificateName(this.value)"><span class="certificate-name-print">${escapeAttribute(certificateName)}</span></p><p>ha completato con profitto <strong>In classe con le competenze socio-emotive · Modulo 1</strong></p><p><strong>10 ore di formazione professionale</strong></p><button class="btn no-print" onclick="window.print()">Stampa / salva PDF</button></div>`:`<div class="feedback bad">Soglia non raggiunta: servono almeno 32/40.</div><button class="btn" onclick="resetFinal()">Riprova</button>`);let q=finalQs[s.i];return `<div class="kicker">Test finale · 40 domande</div><h2>Verifica conclusiva</h2><div class="quizShell"><div class="quizTop">Domanda ${s.i+1} di 40 · soglia 32/40</div><div class="miniProgress"><i style="width:${((s.i+1)/40)*100}%"></i></div><div class="qbox"><h3>${q[0]}</h3><div class="opts">${q[1].map((o,oi)=>`<label class="opt"><input type="radio" name="finalq" value="${oi}"> ${o}</label>`).join('')}</div></div><div class="quizNav"><span></span><button class="btn" onclick="answerFinal()">${s.i===39?'Concludi test':'Rispondi e continua'}</button></div></div>`}
 function videoHTML(d,ui){const player=d.youtube?`<iframe src="https://www.youtube-nocookie.com/embed/${d.youtube}" title="${d.title}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`:`<video controls playsinline preload="none" aria-label="${d.title}" src="${d.video}">Il browser non supporta la riproduzione video.</video>`;const transcript=d.script?`<p class="no-print"><button class="btn secondary" onclick="showNotes(${ui})">Trascrizione video</button></p><div id="vn${ui}"></div>`:"";return `<div class="kicker">${d.duration}</div><h2>${d.title}</h2><div class="video-frame">${player}</div>${transcript}`}
-function pageHTML(u,side,ui){if(!u)return `<section class="page ${side}"></section>`;if(u.type==='cover')return `<section class="page ${side} cover"><img src="copertina_libro.png" alt="Copertina"></section>`;if(u.type==='text')return `<section class="page ${side}"><div class="kicker">${u.data.kicker}</div><h2>${u.data.title}</h2>${bodyHTML(u.data.body)}</section>`;if(u.type==='reading')return `<section class="page ${side}">${readingHTML(u.data)}</section>`;if(u.type==='tree')return `<section class="page ${side}">${treeHTML()}</section>`;if(u.type==='checkpoint')return `<section class="page ${side}">${checkpointHTML(u.data,ui)}</section>`;if(u.type==='video')return `<section class="page ${side}">${videoHTML(u.data,ui)}</section>`;return `<section class="page ${side}">${finalHTML()}</section>`}
-function render(){let mobile=matchMedia('(max-width:900px)').matches,sp=document.getElementById('spread');if(mobile)sp.innerHTML=`<section class="page left"></section>`+pageHTML(units[pos],'right',pos);else{let l=pos%2===0?pos:pos-1;sp.innerHTML=pageHTML(units[l],'left',l)+pageHTML(units[l+1],'right',l+1)}document.getElementById('bar').style.width=((pos+1)/units.length*100)+'%';document.getElementById('counter').textContent=`${pos+1} / ${units.length}`;localStorage.setItem('sel_mod1_pos',pos);toc()}
-function toc(){let t=document.getElementById('toc');t.innerHTML='';[['Inizio',0],['Competenze e normativa',1],['Modelli internazionali',7],['Letture',16],['Test finale',units.length-1]].forEach(([n,i])=>{let b=document.createElement('button');b.textContent=n;if(Math.abs(pos-i)<3)b.className='active';b.onclick=()=>{pos=i;render()};t.appendChild(b)})}
+function pageHTML(u,side,ui){if(!u)return `<section class="page ${side}"></section>`;if(u.type==='cover')return `<section class="page ${side} cover"><img src="copertina_libro.png" alt="Copertina"></section>`;if(u.type==='text')return `<section class="page ${side}" data-unit="${ui}"><div class="book-text"><div class="kicker">${u.data.kicker}</div><h2>${u.data.title}</h2>${bodyHTML(u.data.body)}</div></section>`;if(u.type==='reading')return `<section class="page ${side}" data-unit="${ui}">${readingHTML(u.data)}</section>`;if(u.type==='tree')return `<section class="page ${side}">${treeHTML()}</section>`;if(u.type==='checkpoint')return `<section class="page ${side}">${checkpointHTML(u.data,ui)}</section>`;if(u.type==='video')return `<section class="page ${side}">${videoHTML(u.data,ui)}</section>`;return `<section class="page ${side}">${finalHTML()}</section>`}
+function render(){let mobile=matchMedia('(max-width:900px)').matches,sp=document.getElementById('spread');if(mobile)sp.innerHTML=`<section class="page left"></section>`+pageHTML(units[pos],'right',pos);else{let l=pos%2===0?pos:pos-1;sp.innerHTML=pageHTML(units[l],'left',l)+pageHTML(units[l+1],'right',l+1)}document.getElementById('bar').style.width=((pos+1)/units.length*100)+'%';document.getElementById('counter').textContent=`${pos+1} / ${units.length}`;localStorage.setItem('sel_mod1_pos',pos);toc();restoreHighlights()}
+const highlightKey='sel_mod1_highlights_v1';
+let studyMarks={};try{studyMarks=JSON.parse(localStorage.getItem(highlightKey)||'{}')}catch(e){studyMarks={}}
+function saveStudyMarks(){try{localStorage.setItem(highlightKey,JSON.stringify(studyMarks))}catch(e){console.warn('Memoria evidenziazioni non disponibile',e)}}
+function findReadingHeadings(){
+ const out=[];
+ units.forEach((u,i)=>{
+  if(u.type!=='reading')return;
+  const headings=[...u.data.html.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)];
+  headings.forEach((m,j)=>{
+   const label=m[1].replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
+   if(label && !out.some(x=>x.label.toLocaleLowerCase('it')===label.toLocaleLowerCase('it')))
+    out.push({label,index:i,heading:j});
+  });
+ });return out;
+}
+const sectionLinks=findReadingHeadings();
+function jumpToSection(index,heading){
+ pos=index;render();
+ // On the desktop both pages may be visible; scroll the selected paragraph into view.
+ requestAnimationFrame(()=>{
+  const panel=document.querySelector(`.page[data-unit="${index}"]`);
+  const target=panel?.querySelectorAll('.section-title')[heading]||panel;
+  if(target)target.scrollIntoView({block:'nearest',behavior:'smooth'});
+ });
+}
+function toc(){
+ const t=document.getElementById('toc');t.replaceChildren();
+ const items=[['Inizio',0],['Competenze e normativa',units.findIndex(u=>u.type==='text'&&u.data.title==='Che cosa sono le competenze socio-emotive')],['Modelli internazionali',units.findIndex(u=>u.type==='text'&&u.data.title.startsWith('Modelli internazionali'))],['Letture',units.findIndex(u=>u.type==='reading')],['Test finale',units.length-1]];
+ items.forEach(([name,i])=>{if(i<0)return;const b=document.createElement('button');b.textContent=name;if(pos===i)b.className='active';b.onclick=()=>{pos=i;render()};t.appendChild(b)});
+ const details=document.createElement('details');details.className='toc-group';details.open=localStorage.getItem('sel_paragraphs_open')==='1';
+ details.addEventListener('toggle',()=>localStorage.setItem('sel_paragraphs_open',details.open?'1':'0'));
+ const summary=document.createElement('summary');summary.textContent='Paragrafi ▾';details.appendChild(summary);
+ const section=document.createElement('div');section.className='toc-section';
+ sectionLinks.forEach(({label,index,heading})=>{const b=document.createElement('button');b.textContent=label;b.title=label;if(pos===index)b.className='active';b.onclick=()=>jumpToSection(index,heading);section.appendChild(b)});
+ details.appendChild(section);t.appendChild(details);
+}
+function textNodes(root){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];let node;while((node=walker.nextNode()))nodes.push(node);return nodes}
+function offsetAt(root,container,offset){let count=0;for(const n of textNodes(root)){if(n===container)return count+offset;if(n.contains?.(container))return count+offset;count+=n.textContent.length}return null}
+function pointAt(root,offset){const nodes=textNodes(root);let count=0;for(const n of nodes){const end=count+n.textContent.length;if(offset<=end)return[n,Math.max(0,offset-count)];count=end}const last=nodes[nodes.length-1];return last?[last,last.textContent.length]:null}
+function applyStudyMark(root,a,b,color){
+ const start=pointAt(root,a),end=pointAt(root,b);if(!start||!end)return;
+ const r=document.createRange();r.setStart(...start);r.setEnd(...end);
+ if(r.collapsed)return;
+ const span=document.createElement('span');span.className='study-mark '+color;
+ try{span.appendChild(r.extractContents());r.insertNode(span)}catch(e){console.warn('Impossibile ripristinare evidenziazione',e)}
+}
+function restoreHighlights(){
+ document.querySelectorAll('.page[data-unit]').forEach(page=>{
+  const key=page.dataset.unit,root=page.querySelector('.reading')||page.querySelector('.book-text');
+  if(!root)return;
+  const marks=studyMarks[key]||[];
+  marks.slice().sort((a,b)=>b.start-a.start).forEach(m=>applyStudyMark(root,m.start,m.end,m.color));
+ });
+}
+function highlightSelection(color){
+ const sel=window.getSelection();if(!sel||sel.isCollapsed||!sel.rangeCount)return;
+ const range=sel.getRangeAt(0),page=range.commonAncestorContainer.nodeType===1?range.commonAncestorContainer:range.commonAncestorContainer.parentElement;
+ const containingPage=page?.closest?.('.page[data-unit]');if(!containingPage)return;
+ const root=containingPage.querySelector('.reading')||containingPage.querySelector('.book-text');
+ if(!root||!root.contains(range.startContainer)||!root.contains(range.endContainer))return;
+ const start=offsetAt(root,range.startContainer,range.startOffset),end=offsetAt(root,range.endContainer,range.endOffset);
+ if(start===null||end===null||end<=start)return;
+ const key=containingPage.dataset.unit,marks=studyMarks[key]||[];
+ if(marks.some(m=>start<m.end&&end>m.start)){alert('La selezione comprende già un passaggio evidenziato. Cancella le evidenziazioni della pagina prima di sovrapporle.');return}
+ marks.push({start,end,color});studyMarks[key]=marks;saveStudyMarks();sel.removeAllRanges();restoreHighlights();
+}
+function clearPageHighlights(){
+ const key=String(pos);if(!studyMarks[key]?.length)return;
+ if(!confirm('Eliminare tutte le evidenziazioni di questa pagina?'))return;
+ delete studyMarks[key];saveStudyMarks();render();
+}
 function step(d){let n=Math.max(0,Math.min(units.length-1,pos+d));if(n!==pos){pos=n;render()}}
 document.getElementById('next').onclick=()=>step(matchMedia('(max-width:900px)').matches?1:2);document.getElementById('prev').onclick=()=>step(matchMedia('(max-width:900px)').matches?-1:-2);let sx=0,sy=0,swipeActive=false;stage.addEventListener('pointerdown',e=>{swipeActive=!e.target.closest('button,input,label,textarea,select,video,a');if(!swipeActive)return;sx=e.clientX;sy=e.clientY});stage.addEventListener('pointerup',e=>{if(!swipeActive)return;swipeActive=false;let dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.3)step(dx<0?(matchMedia('(max-width:900px)').matches?1:2):(matchMedia('(max-width:900px)').matches?-1:-2))});
 function answerCP(ui){const s=quizState[ui],e=document.querySelector(`input[name="cp${ui}"]:checked`);if(!s||s.finished||!e)return;if(+e.value===s.qs[s.i][2])s.score++;if(s.i<s.qs.length-1)s.i++;else s.finished=true;render()}
